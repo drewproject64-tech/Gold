@@ -35,6 +35,10 @@ class GoldBotContractTests(unittest.TestCase):
         for prefix in ("gold:", "market:", "glossary:"):
             self.assertIn(f'F.data.startswith("{prefix}")', self.source)
 
+    def test_retry_navigation_exists_for_all_three_functions(self):
+        for prefix in ("gold", "market", "glossary"):
+            self.assertIn(f'callback_data == "again:{prefix}"', self.source)
+
     def test_main_menu_has_no_reply_keyboard(self):
         self.assertNotIn("ReplyKeyboardBuilder", self.source)
 
