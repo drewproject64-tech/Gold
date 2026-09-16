@@ -18,6 +18,16 @@ BOT_COMMANDS = [
     ("help", "Show how to use the bot"),
 ]
 
+BOT_SHORT_DESCRIPTION = (
+    "Learn gold, XAUUSD, market concepts, and financial terms."
+)
+
+BOT_DESCRIPTION = (
+    "Gold Academy is a Telegram-native educational guide to gold, XAUUSD, "
+    "market concepts, and common financial terminology. "
+    "It provides short lessons and definitions for general education only."
+)
+
 HOME_TEXT = (
     "<b>🟡 Gold Academy</b>\n\n"
     "A Telegram-native learning guide to gold, markets, and common financial terms.\n\n"
@@ -362,6 +372,8 @@ async def configure_bot(bot: Bot):
     await bot.set_my_commands(
         [BotCommand(command=command, description=description) for command, description in BOT_COMMANDS]
     )
+    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
+    await bot.set_my_description(description=BOT_DESCRIPTION)
 
 
 async def main():
