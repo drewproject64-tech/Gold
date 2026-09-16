@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
-from aiogram.types import BotCommand, CallbackQuery, Message
+from aiogram.types import BotCommand, CallbackQuery, ErrorEvent, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 router = Router()
@@ -322,6 +322,29 @@ async def again_glossary_callback(callback: CallbackQuery):
 async def unknown_callback(callback: CallbackQuery):
     await callback.answer("That option is no longer available.", show_alert=True)
     logger.warning("Unknown callback received: %r", callback.data)
+
+
+@router.errors()
+async def error_handler(event: ErrorEvent):
+    logger.error("Unhandled update error: %r", event.exception)
+    message = event.update.message
+    callback = event.update.callback_query
+
+    if message:
+        try:
+            await message.answer(
+                "Something went wrong while processing that request. Please use /start to return to the main menu."
+            )
+        except Exception:
+            logger.error("Could not send the user-facing error message")
+    elif callback:
+        try:
+            await callback.answer(
+                "Something went wrong. Please open the main menu again.",
+                show_alert=True,
+            )
+        except Exception:
+            logger.error("Could not acknowledge failed callback")
 
 
 @router.message()
