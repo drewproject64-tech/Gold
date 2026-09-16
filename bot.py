@@ -113,9 +113,11 @@ def section_keyboard(items, prefix):
     return kb.as_markup()
 
 
-def detail_keyboard():
+def detail_keyboard(prefix):
     kb = InlineKeyboardBuilder()
+    kb.button(text="🔁 More Topics", callback_data=f"again:{prefix}")
     kb.button(text="↩️ Main Menu", callback_data="home")
+    kb.adjust(1)
     return kb.as_markup()
 
 
@@ -234,7 +236,7 @@ async def gold_topic_callback(callback: CallbackQuery):
         if callback.message:
             await callback.message.edit_text(
                 f"<b>{escape(title)}</b>\n\n{escape(body)}",
-                reply_markup=detail_keyboard(),
+                reply_markup=detail_keyboard("glossary"),
             )
     except Exception:
         logger.exception("Failed to open gold topic: %s", key)
@@ -284,6 +286,36 @@ async def glossary_term_callback(callback: CallbackQuery):
             )
     except Exception:
         logger.exception("Failed to open glossary term: %s", key)
+
+
+@router.callback_query(F.data == "again:gold")
+async def again_gold_callback(callback: CallbackQuery):
+    await callback.answer()
+    if callback.message:
+        await callback.message.edit_text(
+            "<b>🟡 Gold Guide</b>\n\nChoose a topic:",
+            reply_markup=section_keyboard(GOLD_TOPICS, "gold"),
+        )
+
+
+@router.callback_query(F.data == "again:market")
+async def again_market_callback(callback: CallbackQuery):
+    await callback.answer()
+    if callback.message:
+        await callback.message.edit_text(
+            "<b>📚 Market Lessons</b>\n\nChoose a topic:",
+            reply_markup=section_keyboard(MARKET_TOPICS, "market"),
+        )
+
+
+@router.callback_query(F.data == "again:glossary")
+async def again_glossary_callback(callback: CallbackQuery):
+    await callback.answer()
+    if callback.message:
+        await callback.message.edit_text(
+            "<b>📖 Glossary</b>\n\nChoose a term:",
+            reply_markup=section_keyboard(glossary_items(), "glossary"),
+        )
 
 
 @router.callback_query()
