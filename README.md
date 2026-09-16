@@ -1,44 +1,83 @@
-# Gold Pro Trader
+# Gold Academy
 
-Gold Pro Trader is a Telegram bot focused on gold and forex market education, terminology, basic calculators, and general market information.
+Gold Academy is a Telegram-native educational bot about gold, XAUUSD, market concepts, and common financial terminology.
 
-## Features
+The bot deliberately focuses on **three complete user functions** rather than a large collection of partial tools:
 
-- Simple `/start`, `/help`, `/about`, and `/privacy` commands
-- Persistent reply-keyboard main menu
-- Gold/XAUUSD educational overview
-- Trading lessons: candlesticks, market structure, support/resistance, technical and fundamental analysis, psychology, and risk management
-- Trading glossary
-- Basic educational calculators
-- Trading-session and economic-event explainers
-- No broker credentials, passwords, or payment information requested
-- Educational disclaimer throughout the experience
+1. **Gold Guide** — short lessons about gold and XAUUSD.
+2. **Market Lessons** — core concepts such as supply and demand, inflation, interest rates, and market structure.
+3. **Glossary** — concise definitions of common financial terms.
 
-## Deploy
+The bot does not provide trade signals, personalized financial recommendations, price forecasts, guaranteed returns, payments, broker access, or external redirects.
 
-### Environment variable
+## Commands
 
-Set:
+- `/start` — open the main menu.
+- `/help` — explain the three functions and navigation.
+
+Telegram deep-link start payloads are accepted by the standard `/start` handler and do not change the destination experience.
+
+## Environment
+
+Required:
 
 ```text
 BOT_TOKEN=your_bot_token_from_botfather
 ```
 
-### Docker
+Optional:
 
-```bash
-docker build -t gold-pro-trader .
-docker run --rm -e BOT_TOKEN="$BOT_TOKEN" gold-pro-trader
+```text
+LOG_LEVEL=INFO
 ```
 
-### Render
+Never commit a real bot token or other credentials.
 
-Create a **Background Worker** or other continuously running service from this repository and set the environment variable `BOT_TOKEN` to the value supplied by BotFather. The included Dockerfile runs the bot with Python 3.12.
+## Run locally
 
-## Telegram Ads readiness
+```bash
+python -m pip install -r requirements.txt
+BOT_TOKEN=your_token python bot.py
+```
 
-The bot is designed as a genuine informational destination rather than a thin redirect. It avoids guaranteed-profit claims, fake performance claims, forced redirects, and requests for sensitive financial credentials.
+On Windows PowerShell:
 
-Before advertising, verify the live bot manually: every button should work, the username should be correct, the profile/about text should be complete, and any external market data should be accurate and up to date.
+```powershell
+$env:BOT_TOKEN="your_token"
+python bot.py
+```
 
-Approval is ultimately determined by Telegram and cannot be guaranteed by the code alone.
+## Docker
+
+```bash
+docker build -t gold-academy .
+docker run --rm -e BOT_TOKEN="$BOT_TOKEN" gold-academy
+```
+
+## Render
+
+Deploy this repository as a **Background Worker**. The included `render.yaml` uses:
+
+```text
+python bot.py
+```
+
+Set `BOT_TOKEN` in the Render environment. Do not put the token in GitHub.
+
+## QA
+
+Run the standard-library checks with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The checks validate source compilation, the three-button main menu contract, supported commands, and callback coverage.
+
+## Telegram Ads destination readiness
+
+The implementation is designed as a genuine Telegram-native destination: the bot has original educational content, a clear main menu, working callbacks, back navigation, command responses, invalid-input handling, and no redirect-only flow.
+
+Telegram's current guidelines state that promoted bots must be functional, technically complete, active, beneficial to users, and responsive to commands on mobile and desktop. Telegram also requires promoted bots to have a profile image and complete About/Description text. citeturn0search0
+
+Code cannot guarantee approval. Before resubmitting an ad, manually verify the live bot account, profile image, About/Description, username, language, and every visible interaction. The advertisement should describe the same educational product users encounter after clicking.
