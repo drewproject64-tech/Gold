@@ -78,6 +78,6 @@ The checks validate source compilation, the three-button main menu contract, sup
 
 The implementation is designed as a genuine Telegram-native destination: the bot has original educational content, a clear main menu, working callbacks, back navigation, command responses, invalid-input handling, and no redirect-only flow.
 
-Telegram's current guidelines state that promoted bots must be functional, technically complete, active, beneficial to users, and responsive to commands on mobile and desktop. Telegram also requires promoted bots to have a profile image and complete About/Description text. citeturn0search0
+Telegram's current guidelines state that promoted bots must be functional, technically complete, active, beneficial to users, and responsive to commands on mobile and desktop. Telegram also requires promoted bots to have a profile image and complete About/Description text.
 
 Code cannot guarantee approval. Before resubmitting an ad, manually verify the live bot account, profile image, About/Description, username, language, and every visible interaction. The advertisement should describe the same educational product users encounter after clicking.
