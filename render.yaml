@@ -1,0 +1,10 @@
+services:
+  - type: worker
+    name: gold-academy
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: LOG_LEVEL
+        value: INFO
