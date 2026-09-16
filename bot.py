@@ -236,7 +236,7 @@ async def gold_topic_callback(callback: CallbackQuery):
         if callback.message:
             await callback.message.edit_text(
                 f"<b>{escape(title)}</b>\n\n{escape(body)}",
-                reply_markup=detail_keyboard("glossary"),
+                reply_markup=detail_keyboard("gold"),
             )
     except Exception:
         logger.exception("Failed to open gold topic: %s", key)
@@ -259,7 +259,7 @@ async def market_topic_callback(callback: CallbackQuery):
         if callback.message:
             await callback.message.edit_text(
                 f"<b>{escape(title)}</b>\n\n{escape(body)}",
-                reply_markup=detail_keyboard(),
+                reply_markup=detail_keyboard("market"),
             )
     except Exception:
         logger.exception("Failed to open market lesson: %s", key)
@@ -282,7 +282,7 @@ async def glossary_term_callback(callback: CallbackQuery):
         if callback.message:
             await callback.message.edit_text(
                 f"<b>{escape(title)}</b>\n\n{escape(body)}",
-                reply_markup=detail_keyboard(),
+                reply_markup=detail_keyboard("glossary"),
             )
     except Exception:
         logger.exception("Failed to open glossary term: %s", key)
