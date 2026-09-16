@@ -1,240 +1,317 @@
 import asyncio
 import logging
 import os
+from html import escape
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
-from aiogram.types import CallbackQuery, Message
-from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
-
+from aiogram.types import BotCommand, CallbackQuery, Message
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 router = Router()
+logger = logging.getLogger(__name__)
 
+BOT_COMMANDS = [
+    ("start", "Open the Gold Academy"),
+    ("help", "Show how to use the bot"),
+]
 
 HOME_TEXT = (
     "<b>🟡 Gold Academy</b>\n\n"
-    "A simple educational reference about gold, economics, and financial terminology.\n\n"
-    "Explore short lessons, definitions, and general background information in one place.\n\n"
-    "⚠️ <b>Educational information only.</b> This bot does not provide financial advice, "
-    "trade signals, forecasts, recommendations, or promises of financial returns."
+    "A Telegram-native learning guide to gold, markets, and common financial terms.\n\n"
+    "Choose one of the three sections below. Each section contains short, "
+    "self-contained lessons you can open and revisit.\n\n"
+    "Educational information only. No trade signals, forecasts, personalized "
+    "recommendations, or promises of financial returns."
 )
 
+GOLD_TOPICS = {
+    "gold_basics": (
+        "Gold Basics",
+        "Gold is a precious metal used in jewelry, technology, industry, and "
+        "official reserves. Its market is global and prices can change as "
+        "economic and market conditions change.",
+    ),
+    "xauusd": (
+        "XAUUSD",
+        "XAU is the standard market symbol for one troy ounce of gold, while "
+        "USD is the US dollar. XAUUSD is therefore commonly used to describe "
+        "the gold price quoted in US dollars per troy ounce.",
+    ),
+    "gold_factors": (
+        "What Can Affect Gold Prices",
+        "Gold prices can be discussed in relation to interest rates, inflation "
+        "expectations, currency conditions, investment demand, central-bank "
+        "activity, supply, and broader market conditions. These factors do not "
+        "guarantee a particular future price movement.",
+    ),
+    "gold_history": (
+        "Gold Through History",
+        "Gold has served cultural, monetary, and reserve roles across many "
+        "civilizations. Modern gold markets developed alongside international "
+        "trade, monetary systems, and financial institutions.",
+    ),
+}
 
-LESSONS = {
-    "gold": (
-        "<b>Gold: An Introduction</b>\n\n"
-        "Gold is a precious metal used in jewelry, technology, central-bank reserves, and other applications.\n\n"
-        "Its price can be discussed in relation to factors such as interest rates, inflation expectations, "
-        "currency conditions, supply and demand, and broader economic conditions.\n\n"
-        "This lesson provides general background only."
-    ),
-    "history": (
-        "<b>Gold Through History</b>\n\n"
-        "Gold has been used as money, a store of value, jewelry, and a reserve asset across many civilizations.\n\n"
-        "Modern gold markets developed alongside changes in monetary systems, international trade, and financial institutions."
-    ),
-    "economics": (
-        "<b>Basic Economics</b>\n\n"
-        "Economics studies how people, businesses, and governments make choices about scarce resources.\n\n"
-        "Useful concepts include supply and demand, inflation, interest rates, employment, productivity, and economic growth."
+MARKET_TOPICS = {
+    "supply_demand": (
+        "Supply and Demand",
+        "Supply describes how much of a good producers are willing and able to "
+        "provide. Demand describes how much buyers are willing and able to "
+        "purchase. Market prices can change as these conditions change.",
     ),
     "inflation": (
-        "<b>Inflation</b>\n\n"
-        "Inflation describes a sustained increase in the general level of prices over time.\n\n"
-        "Inflation is commonly measured using price indexes. Changes in inflation can affect household spending, "
-        "business costs, savings, and economic policy."
+        "Inflation",
+        "Inflation is a sustained increase in the general level of prices over "
+        "time. It is commonly measured using price indexes and can influence "
+        "household spending, business costs, and economic policy.",
     ),
-    "interest": (
-        "<b>Interest Rates</b>\n\n"
-        "An interest rate is the cost of borrowing money or the return paid on certain forms of saving and lending.\n\n"
-        "Central banks use policy rates and other tools to influence financial and economic conditions."
+    "interest_rates": (
+        "Interest Rates",
+        "An interest rate is the cost of borrowing or the return associated "
+        "with lending or saving. Central banks use policy rates and other tools "
+        "to influence financial and economic conditions.",
     ),
-    "markets": (
-        "<b>How Markets Work</b>\n\n"
-        "Markets bring buyers and sellers together. Prices can change as participants respond to information, "
-        "supply, demand, expectations, and changing economic conditions.\n\n"
-        "Past price movement does not establish what will happen next."
+    "market_structure": (
+        "Market Structure",
+        "Market structure describes how buyers, sellers, orders, and price "
+        "formation interact. Price charts show historical market activity; "
+        "they do not establish what will happen next.",
     ),
 }
 
 GLOSSARY = {
-    "gold": "A precious metal with industrial, cultural, and monetary uses.",
-    "inflation": "A sustained increase in the general level of prices.",
+    "commodity": "A standardized basic good that can be bought and sold, such as certain metals or agricultural products.",
+    "currency": "A medium of exchange issued or recognized as money within an economy.",
+    "gdp": "Gross domestic product, a measure of the value of final goods and services produced within an economy over a period.",
+    "central_bank": "An institution responsible for monetary policy and other functions within a country's financial system.",
+    "inflation": "A sustained increase in the general level of prices over time.",
     "interest_rate": "The cost of borrowing or the return associated with lending or saving.",
     "supply": "The quantity of a good or service that producers are willing and able to provide.",
     "demand": "The quantity of a good or service that consumers are willing and able to purchase.",
-    "gdp": "Gross domestic product, a measure of the value of final goods and services produced within an economy over a period.",
-    "currency": "A medium of exchange issued or recognized as money within an economy.",
-    "central_bank": "An institution responsible for monetary policy and other functions within a country's financial system.",
-    "commodity": "A standardized basic good that can be bought and sold, such as certain metals or agricultural products.",
+    "xauusd": "A common market symbol for the price of one troy ounce of gold quoted in US dollars.",
 }
 
 
-def home_keyboard():
-    kb = ReplyKeyboardBuilder()
-    kb.button(text="🟡 About Gold")
-    kb.button(text="📚 Learn")
-    kb.button(text="📖 Glossary")
-    kb.button(text="ℹ️ About")
-    kb.adjust(2, 2)
-    return kb.as_markup(resize_keyboard=True, is_persistent=True)
-
-
-def learn_keyboard():
+def main_menu():
     kb = InlineKeyboardBuilder()
-    items = [
-        ("🟡 Gold Basics", "lesson:gold"),
-        ("📜 Gold History", "lesson:history"),
-        ("🌍 Economics", "lesson:economics"),
-        ("📈 Inflation", "lesson:inflation"),
-        ("🏦 Interest Rates", "lesson:interest"),
-        ("📊 Markets", "lesson:markets"),
-        ("↩️ Home", "home"),
-    ]
-    for label, data in items:
-        kb.button(text=label, callback_data=data)
-    kb.adjust(2, 2, 2, 1)
+    kb.button(text="🟡 Gold Guide", callback_data="menu:gold")
+    kb.button(text="📚 Market Lessons", callback_data="menu:markets")
+    kb.button(text="📖 Glossary", callback_data="menu:glossary")
+    kb.adjust(1)
     return kb.as_markup()
 
 
-def glossary_keyboard():
+def section_keyboard(items, prefix):
     kb = InlineKeyboardBuilder()
-    items = [
-        ("Gold", "glossary:gold"),
-        ("Inflation", "glossary:inflation"),
-        ("Interest Rate", "glossary:interest_rate"),
-        ("Supply", "glossary:supply"),
-        ("Demand", "glossary:demand"),
-        ("GDP", "glossary:gdp"),
-        ("Currency", "glossary:currency"),
-        ("Central Bank", "glossary:central_bank"),
-        ("Commodity", "glossary:commodity"),
-        ("↩️ Home", "home"),
-    ]
-    for label, data in items:
-        kb.button(text=label, callback_data=data)
-    kb.adjust(2, 2, 2, 2, 1)
+    for key, value in items.items():
+        kb.button(text=value[0], callback_data=f"{prefix}:{key}")
+    kb.button(text="↩️ Main Menu", callback_data="home")
+    kb.adjust(1)
     return kb.as_markup()
 
 
-def back_home_keyboard():
+def detail_keyboard():
     kb = InlineKeyboardBuilder()
-    kb.button(text="↩️ Home", callback_data="home")
+    kb.button(text="↩️ Main Menu", callback_data="home")
     return kb.as_markup()
+
+
+def glossary_items():
+    return {
+        key: (key.replace("_", " ").title(), value)
+        for key, value in GLOSSARY.items()
+    }
+
+
+def help_text():
+    return (
+        "<b>How to use Gold Academy</b>\n\n"
+        "🟡 <b>Gold Guide</b> — learn gold and XAUUSD basics.\n"
+        "📚 <b>Market Lessons</b> — review core market and economic concepts.\n"
+        "📖 <b>Glossary</b> — look up common financial terms.\n\n"
+        "Tap any topic to read it, then use Main Menu to return.\n\n"
+        "Commands:\n"
+        "/start — open the main menu\n"
+        "/help — show this help\n\n"
+        "All content is general educational information."
+    )
+
+
+async def send_home(message: Message):
+    await message.answer(HOME_TEXT, reply_markup=main_menu())
 
 
 @router.message(CommandStart())
-async def start_handler(message: Message) -> None:
-    await message.answer(HOME_TEXT, reply_markup=home_keyboard())
+async def start_handler(message: Message):
+    try:
+        # CommandStart accepts Telegram deep-link payloads. The payload is
+        # intentionally ignored so /start and /start <payload> reach the
+        # same safe, complete destination experience.
+        await send_home(message)
+    except Exception:
+        logger.exception("Failed to process /start")
+        await message.answer(
+            "The main menu could not be opened. Please try /start again."
+        )
 
 
 @router.message(Command("help"))
-async def help_handler(message: Message) -> None:
-    await message.answer(
-        "<b>Help</b>\n\n"
-        "Use the menu buttons to explore educational topics.\n\n"
-        "Commands:\n"
-        "/start — Open the main menu\n"
-        "/help — Show help\n"
-        "/about — About Gold Academy\n"
-        "/privacy — Privacy and data note\n\n"
-        "The bot provides general educational information only."
-    )
-
-
-@router.message(Command("about"))
-@router.message(F.text == "ℹ️ About")
-async def about_handler(message: Message) -> None:
-    await message.answer(
-        "<b>About Gold Academy</b>\n\n"
-        "Gold Academy is an educational reference bot covering gold, economics, and financial terminology.\n\n"
-        "It provides short lessons and definitions for general learning.\n\n"
-        "⚠️ It does not provide financial advice, trade signals, personalized recommendations, "
-        "price forecasts, or guaranteed outcomes."
-    )
-
-
-@router.message(Command("privacy"))
-async def privacy_handler(message: Message) -> None:
-    await message.answer(
-        "<b>Privacy</b>\n\n"
-        "Gold Academy is designed to minimize data collection. It does not request passwords, "
-        "payment details, broker credentials, or private financial account access.\n\n"
-        "Telegram may provide basic account and message metadata required for bot operation."
-    )
-
-
-@router.message(F.text == "🟡 About Gold")
-async def gold_handler(message: Message) -> None:
-    await message.answer(
-        "<b>🟡 About Gold</b>\n\n"
-        "Learn general facts about gold, its history, economic context, and common terminology.",
-        reply_markup=learn_keyboard(),
-    )
-
-
-@router.message(F.text == "📚 Learn")
-async def learn_handler(message: Message) -> None:
-    await message.answer(
-        "<b>📚 Learn</b>\n\nChoose an educational topic:",
-        reply_markup=learn_keyboard(),
-    )
-
-
-@router.message(F.text == "📖 Glossary")
-async def glossary_handler(message: Message) -> None:
-    await message.answer(
-        "<b>📖 Glossary</b>\n\nChoose a term:",
-        reply_markup=glossary_keyboard(),
-    )
+async def help_handler(message: Message):
+    try:
+        await message.answer(help_text(), reply_markup=main_menu())
+    except Exception:
+        logger.exception("Failed to process /help")
 
 
 @router.callback_query(F.data == "home")
-async def cb_home(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(HOME_TEXT)
-    await callback.message.answer("Main menu", reply_markup=home_keyboard())
+async def home_callback(callback: CallbackQuery):
     await callback.answer()
+    try:
+        if callback.message:
+            await callback.message.edit_text(HOME_TEXT, reply_markup=main_menu())
+    except Exception:
+        logger.exception("Failed to return to main menu")
+        if callback.message:
+            await callback.message.answer(HOME_TEXT, reply_markup=main_menu())
 
 
-@router.callback_query(F.data.startswith("lesson:"))
-async def cb_lesson(callback: CallbackQuery) -> None:
-    key = callback.data.split(":", 1)[1]
-    text = LESSONS.get(key)
-    if not text:
-        await callback.answer("Lesson unavailable", show_alert=True)
+@router.callback_query(F.data == "menu:gold")
+async def gold_menu_callback(callback: CallbackQuery):
+    await callback.answer()
+    try:
+        if callback.message:
+            await callback.message.edit_text(
+                "<b>🟡 Gold Guide</b>\n\nChoose a topic:",
+                reply_markup=section_keyboard(GOLD_TOPICS, "gold"),
+            )
+    except Exception:
+        logger.exception("Failed to open Gold Guide")
+
+
+@router.callback_query(F.data == "menu:markets")
+async def markets_menu_callback(callback: CallbackQuery):
+    await callback.answer()
+    try:
+        if callback.message:
+            await callback.message.edit_text(
+                "<b>📚 Market Lessons</b>\n\nChoose a topic:",
+                reply_markup=section_keyboard(MARKET_TOPICS, "market"),
+            )
+    except Exception:
+        logger.exception("Failed to open Market Lessons")
+
+
+@router.callback_query(F.data == "menu:glossary")
+async def glossary_menu_callback(callback: CallbackQuery):
+    await callback.answer()
+    try:
+        if callback.message:
+            await callback.message.edit_text(
+                "<b>📖 Glossary</b>\n\nChoose a term:",
+                reply_markup=section_keyboard(glossary_items(), "glossary"),
+            )
+    except Exception:
+        logger.exception("Failed to open Glossary")
+
+
+@router.callback_query(F.data.startswith("gold:"))
+async def gold_topic_callback(callback: CallbackQuery):
+    await callback.answer()
+    key = (callback.data or "").split(":", 1)[1]
+    topic = GOLD_TOPICS.get(key)
+    if not topic:
+        if callback.message:
+            await callback.message.answer(
+                "That topic is unavailable. Please return to the main menu.",
+                reply_markup=main_menu(),
+            )
         return
-    await callback.message.edit_text(text, reply_markup=back_home_keyboard())
+    title, body = topic
+    try:
+        if callback.message:
+            await callback.message.edit_text(
+                f"<b>{escape(title)}</b>\n\n{escape(body)}",
+                reply_markup=detail_keyboard(),
+            )
+    except Exception:
+        logger.exception("Failed to open gold topic: %s", key)
+
+
+@router.callback_query(F.data.startswith("market:"))
+async def market_topic_callback(callback: CallbackQuery):
     await callback.answer()
+    key = (callback.data or "").split(":", 1)[1]
+    topic = MARKET_TOPICS.get(key)
+    if not topic:
+        if callback.message:
+            await callback.message.answer(
+                "That lesson is unavailable. Please return to the main menu.",
+                reply_markup=main_menu(),
+            )
+        return
+    title, body = topic
+    try:
+        if callback.message:
+            await callback.message.edit_text(
+                f"<b>{escape(title)}</b>\n\n{escape(body)}",
+                reply_markup=detail_keyboard(),
+            )
+    except Exception:
+        logger.exception("Failed to open market lesson: %s", key)
 
 
 @router.callback_query(F.data.startswith("glossary:"))
-async def cb_glossary(callback: CallbackQuery) -> None:
-    key = callback.data.split(":", 1)[1]
-    explanation = GLOSSARY.get(key)
-    if not explanation:
-        await callback.answer("Term unavailable", show_alert=True)
+async def glossary_term_callback(callback: CallbackQuery):
+    await callback.answer()
+    key = (callback.data or "").split(":", 1)[1]
+    body = GLOSSARY.get(key)
+    if not body:
+        if callback.message:
+            await callback.message.answer(
+                "That term is unavailable. Please return to the main menu.",
+                reply_markup=main_menu(),
+            )
         return
     title = key.replace("_", " ").title()
-    await callback.message.edit_text(
-        f"<b>{title}</b>\n\n{explanation}",
-        reply_markup=back_home_keyboard(),
+    try:
+        if callback.message:
+            await callback.message.edit_text(
+                f"<b>{escape(title)}</b>\n\n{escape(body)}",
+                reply_markup=detail_keyboard(),
+            )
+    except Exception:
+        logger.exception("Failed to open glossary term: %s", key)
+
+
+@router.callback_query()
+async def unknown_callback(callback: CallbackQuery):
+    await callback.answer("That option is no longer available.", show_alert=True)
+    logger.warning("Unknown callback received: %r", callback.data)
+
+
+@router.message()
+async def fallback_handler(message: Message):
+    try:
+        await message.answer(
+            "Please use the three buttons below to explore Gold Academy.",
+            reply_markup=main_menu(),
+        )
+    except Exception:
+        logger.exception("Failed to process fallback message")
+
+
+async def configure_bot(bot: Bot):
+    await bot.set_my_commands(
+        [BotCommand(command=command, description=description) for command, description in BOT_COMMANDS]
     )
-    await callback.answer()
 
 
-@router.message(F.text)
-async def fallback_handler(message: Message) -> None:
-    await message.answer(
-        "Please use the menu below to explore the educational resources.",
-        reply_markup=home_keyboard(),
-    )
-
-
-async def main() -> None:
+async def main():
     logging.basicConfig(
-        level=logging.INFO,
+        level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
     )
 
@@ -250,11 +327,18 @@ async def main() -> None:
     dp.include_router(router)
 
     await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    await configure_bot(bot)
+    logger.info("Gold Academy bot started")
+
+    try:
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+    finally:
+        await bot.session.close()
+        logger.info("Gold Academy bot stopped")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logging.info("Bot stopped")
+        logger.info("Bot stopped")
